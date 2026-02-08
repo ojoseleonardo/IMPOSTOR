@@ -138,3 +138,20 @@ button:hover {
 .inocente #box-papel {
   border: 2px solid #4ecca3;
 }
+
+#box-reinicio.reinicio {
+  margin-top: 1.5rem;
+}
+
+#box-reinicio #btn-reiniciar {
+  background: #2d5a7b;
+}
+
+#box-reinicio #btn-reiniciar:hover:not(:disabled) {
+  background: #3d6a8b;
+}
+
+#box-reinicio #btn-reiniciar:disabled {
+  background: #444;
+  cursor: default;
+}

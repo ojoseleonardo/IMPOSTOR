@@ -95,6 +95,7 @@ io.on('connection', (socket) => {
 
     if (sala.jogadores.length === MAX_JOGADORES_POR_SALA) {
       sala.iniciado = true;
+      sala.reinicioPedido = new Set();
       const palavraSorteada = escolherPalavra();
       const indicesEmbaralhados = embaralhar([0, 1, 2]);
       const indiceImpostor = indicesEmbaralhados[0];
@@ -110,6 +111,40 @@ io.on('connection', (socket) => {
         }
         io.to(j.id).emit('revelar_papel', payload);
       });
+    }
+  });
+
+  socket.on('pedir_reinicio', () => {
+    const dados = jogadores.get(socket.id);
+    if (!dados) return;
+    const sala = salas.get(dados.salaId);
+    if (!sala || !sala.iniciado || !sala.jogadores) return;
+
+    sala.reinicioPedido = sala.reinicioPedido || new Set();
+    sala.reinicioPedido.add(socket.id);
+
+    const quantos = sala.reinicioPedido.size;
+    const necessario = 2;
+    io.to(dados.salaId).emit('atualizar_reinicio', { quantos, necessario });
+
+    if (quantos >= necessario) {
+      sala.reinicioPedido.clear();
+      const palavraSorteada = escolherPalavra();
+      const indicesEmbaralhados = embaralhar([0, 1, 2]);
+      const indiceImpostor = indicesEmbaralhados[0];
+
+      sala.jogadores.forEach((j, i) => {
+        const ehImpostor = i === indiceImpostor;
+        const payload = {
+          papel: ehImpostor ? 'impostor' : 'inocente',
+          mensagem: ehImpostor ? 'Você é o impostor.' : 'Você é inocente.'
+        };
+        if (!ehImpostor) {
+          payload.palavra = palavraSorteada;
+        }
+        io.to(j.id).emit('revelar_papel', payload);
+      });
+      io.to(dados.salaId).emit('atualizar_reinicio', { quantos: 0, necessario });
     }
   });
 

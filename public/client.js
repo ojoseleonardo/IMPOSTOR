@@ -10,6 +10,10 @@
   const numJogadores = document.getElementById('num-jogadores');
   const textoPapel = document.getElementById('texto-papel');
   const textoPalavra = document.getElementById('texto-palavra');
+  const textoReinicio = document.getElementById('texto-reinicio');
+  const btnReiniciar = document.getElementById('btn-reiniciar');
+
+  let pediuReinicio = false;
 
   function mostrarTela(id) {
     telaEntrada.classList.add('oculta');
@@ -66,6 +70,32 @@
       telaRevelacao.classList.add('impostor');
       telaRevelacao.classList.remove('inocente');
     }
+    atualizarUIReinicio(0, 2);
+    pediuReinicio = false;
+  });
+
+  function atualizarUIReinicio(quantos, necessario) {
+    textoReinicio.textContent = quantos >= necessario
+      ? 'Reiniciando...'
+      : quantos === 0
+        ? 'Pelo menos 2 jogadores precisam apertar para reiniciar.'
+        : quantos + '/' + necessario + ' jogadores querem reiniciar.';
+    btnReiniciar.disabled = pediuReinicio;
+    btnReiniciar.textContent = pediuReinicio ? 'Você já pediu reinício' : 'Reiniciar jogo';
+  }
+
+  btnReiniciar.addEventListener('click', () => {
+    if (pediuReinicio) return;
+    socket.emit('pedir_reinicio');
+    pediuReinicio = true;
+    atualizarUIReinicio(1, 2);
+  });
+
+  socket.on('atualizar_reinicio', (data) => {
+    if (data.quantos === 0) {
+      pediuReinicio = false;
+    }
+    atualizarUIReinicio(data.quantos, data.necessario);
   });
 
   socket.on('erro', (texto) => {
