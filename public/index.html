@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Impostor - Jogo em tempo real</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Tela inicial: criar ou entrar na sala -->
+    <section id="tela-entrada" class="tela">
+      <h1>Impostor</h1>
+      <p class="subtitulo">Exatamente 3 jogadores por sala. Um será o impostor.</p>
+
+      <div class="card">
+        <h2>Criar sala</h2>
+        <input type="text" id="nome-criar" placeholder="Seu nome" maxlength="20">
+        <button id="btn-criar">Criar sala</button>
+      </div>
+
+      <div class="card">
+        <h2>Entrar em uma sala</h2>
+        <input type="text" id="codigo-entrar" placeholder="Código da sala" maxlength="6">
+        <input type="text" id="nome-entrar" placeholder="Seu nome" maxlength="20">
+        <button id="btn-entrar">Entrar</button>
+      </div>
+
+      <p id="msg-erro" class="erro"></p>
+    </section>
+
+    <!-- Tela de espera (antes de 3 jogadores) -->
+    <section id="tela-espera" class="tela oculta">
+      <h1>Aguardando jogadores</h1>
+      <p id="codigo-sala-display">Código da sala: <strong id="codigo-sala"></strong></p>
+      <p>Compartilhe o código para outros jogadores entrarem.</p>
+      <ul id="lista-jogadores"></ul>
+      <p id="contador-espera"><span id="num-jogadores">0</span> / 3 jogadores</p>
+    </section>
+
+    <!-- Tela de revelação do papel -->
+    <section id="tela-revelacao" class="tela oculta">
+      <h1>Seu papel</h1>
+      <div id="box-papel">
+        <p id="texto-papel"></p>
+        <p id="texto-palavra" class="palavra oculta"></p>
+      </div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

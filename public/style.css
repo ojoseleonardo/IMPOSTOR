@@ -1,0 +1,140 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100vh;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.subtitulo {
+  text-align: center;
+  color: #888;
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+}
+
+.tela {
+  margin-top: 2rem;
+}
+
+.tela.oculta {
+  display: none;
+}
+
+.card {
+  background: #16213e;
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #aaa;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #0f0f1a;
+  color: #eee;
+  font-size: 1rem;
+}
+
+button {
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 6px;
+  background: #e94560;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+button:hover {
+  background: #c73e54;
+}
+
+.erro {
+  color: #e94560;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  min-height: 1.2em;
+}
+
+#codigo-sala-display {
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+#codigo-sala {
+  color: #4ecca3;
+  letter-spacing: 0.2em;
+}
+
+#lista-jogadores {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+#lista-jogadores li {
+  padding: 0.5rem 0.75rem;
+  background: #16213e;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+
+#contador-espera {
+  text-align: center;
+  color: #888;
+}
+
+#box-papel {
+  background: #16213e;
+  padding: 2rem;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+#texto-papel {
+  font-size: 1.2rem;
+  margin: 0 0 1rem 0;
+}
+
+#texto-palavra {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #4ecca3;
+  margin: 0;
+}
+
+#texto-palavra.oculta {
+  display: none;
+}
+
+.impostor #box-papel {
+  border: 2px solid #e94560;
+}
+
+.inocente #box-papel {
+  border: 2px solid #4ecca3;
+}
