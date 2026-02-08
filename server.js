@@ -13,9 +13,14 @@ const io = new Server(server);
 
 // Lista de palavras - APENAS no backend. O impostor nunca recebe.
 const PALAVRAS = [
-  'GATO', 'CACHORRO', 'SOL', 'LUA', 'MAR',
-  'FLOR', 'LIVRO', 'MUSICA', 'JANELA', 'PORTA',
-  'BICICLETA', 'AVIAO', 'CHOCOLATE', 'PIZZA', 'CAFE'
+  'Ace', 'Amaru', 'Ash', 'Blackbeard', 'Blitz', 'Brava', 'Buck', 'Capitão', 'Deimos', 'Dokkaebi',
+  'Finka', 'Flores', 'Fuze', 'Glaz', 'Gridlock', 'Grim', 'Hibana', 'Iana', 'IQ', 'Jackal',
+  'Kali', 'Lion', 'Maverick', 'Montagne', 'Nøkk', 'Nomad', 'Osa', 'Ram', 'Rauora', 'Sens',
+  'Sledge', 'Striker', 'Thatcher', 'Thermite', 'Twitch', 'Ying', 'Zero', 'Zofia',
+  'Alibi', 'Aruni', 'Azami', 'Bandit', 'Castle', 'Caveira', 'Clash', 'Doc', 'Echo', 'Ela',
+  'Fenrir', 'Frost', 'Goyo', 'Jäger', 'Kaid', 'Kapkan', 'Lesion', 'Maestro', 'Melusi', 'Mira',
+  'Mozzie', 'Mute', 'Oryx', 'Pulse', 'Rook', 'Sentry', 'Skopós', 'Smoke', 'Solis', 'Tachanka',
+  'Thorn', 'Thunderbird', 'Tubarão', 'Valkyrie', 'Vigil', 'Wamai', 'Warden', 'Denari'
 ];
 
 const MAX_JOGADORES_POR_SALA = 3;
