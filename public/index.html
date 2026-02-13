@@ -56,8 +56,16 @@
     <!-- Tela de jogo: rodadas, turnos, palavras, votação -->
     <section id="tela-jogo" class="tela oculta layout-jogo">
       <div class="area-principal">
-        <div id="placar-jogo" class="placar"></div>
+        <div id="box-palavra-sempre" class="box-palavra-sempre"></div>
+        <div class="placar-wrap">
+          <span class="placar-label">Pontos:</span>
+          <div id="placar-jogo" class="placar"></div>
+        </div>
         <p id="rodada-info" class="rodada-info"></p>
+        <div id="box-iniciar-votacao" class="card oculta">
+          <p id="texto-votacao-pedida"></p>
+          <button id="btn-iniciar-votacao" type="button">Iniciar votação</button>
+        </div>
         <div id="box-vez" class="card">
           <p id="texto-vez"></p>
           <div id="box-enviar-palavra" class="oculta">

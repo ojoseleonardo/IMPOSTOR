@@ -29,9 +29,17 @@
   const textoResultado = document.getElementById('texto-resultado');
   const novaPartidaInfo = document.getElementById('nova-partida-info');
   const blocosJogadores = document.getElementById('blocos-jogadores');
+  const boxPalavraSempre = document.getElementById('box-palavra-sempre');
+  const boxIniciarVotacao = document.getElementById('box-iniciar-votacao');
+  const textoVotacaoPedida = document.getElementById('texto-votacao-pedida');
+  const btnIniciarVotacao = document.getElementById('btn-iniciar-votacao');
 
   let estadoAtual = null;
   let revelacaoRecente = false;
+  let meuPapel = null;
+  let minhaPalavra = null;
+  let minhaCategoria = null;
+  let pediuVotacao = false;
 
   socket.emit('pedir_categorias');
 
@@ -90,6 +98,10 @@
   });
 
   socket.on('revelar_papel', (data) => {
+    pediuVotacao = false;
+    meuPapel = data.palavra ? 'inocente' : 'impostor';
+    minhaPalavra = data.palavra || null;
+    minhaCategoria = data.categoria || null;
     mostrarTela('tela-revelacao');
     revelacaoRecente = true;
     textoPapel.textContent = data.mensagem;
@@ -123,12 +135,37 @@
     const round = (estado.round || 0) + 1;
     const vezDe = estado.vezDe || {};
     const playerOrder = estado.playerOrder || [0, 1, 2];
+    const votacaoPedidaCount = estado.votacaoPedidaCount || 0;
+
+    if (meuPapel === 'inocente' && minhaPalavra) {
+      boxPalavraSempre.textContent = 'Palavra: ' + minhaPalavra + (minhaCategoria ? ' (' + minhaCategoria + ')' : '');
+      boxPalavraSempre.className = 'box-palavra-sempre inocente';
+      boxPalavraSempre.style.display = '';
+    } else if (meuPapel === 'impostor') {
+      boxPalavraSempre.textContent = 'Você é o impostor. (Sem palavra secreta)';
+      boxPalavraSempre.className = 'box-palavra-sempre impostor';
+      boxPalavraSempre.style.display = '';
+    } else {
+      boxPalavraSempre.style.display = 'none';
+    }
 
     placarJogo.innerHTML = jogadores
       .map(j => `<span class="placar-item">${escapeHtml(j.nome)}: <strong>${placar[j.id] ?? 0}</strong></span>`)
       .join('');
 
     rodadaInfo.textContent = `Rodada ${round} de 3`;
+
+    boxIniciarVotacao.classList.add('oculta');
+    if (phase === 'jogando') {
+      boxIniciarVotacao.classList.remove('oculta');
+      textoVotacaoPedida.textContent = votacaoPedidaCount >= 2
+        ? 'Iniciando votação...'
+        : votacaoPedidaCount === 0
+          ? '2 jogadores precisam apertar para iniciar a votação.'
+          : votacaoPedidaCount + '/2 jogadores querem iniciar votação.';
+      btnIniciarVotacao.disabled = pediuVotacao;
+      btnIniciarVotacao.textContent = pediuVotacao ? 'Você já pediu votação' : 'Iniciar votação';
+    }
 
     blocosJogadores.innerHTML = jogadores
       .map((j, idx) => {
@@ -156,11 +193,18 @@
         : `Vez de ${escapeHtml(vezDe.nome || '?')}. Aguardando...`;
       if (vezDe.id === meuId) {
         boxEnviarPalavra.classList.remove('oculta');
+        inputPalavra.disabled = false;
+        inputPalavra.removeAttribute('readonly');
         inputPalavra.value = '';
         inputPalavra.focus();
+      } else {
+        inputPalavra.disabled = true;
+        inputPalavra.setAttribute('readonly', 'readonly');
+        inputPalavra.value = '';
       }
+      boxVotacao.classList.add('oculta');
     } else if (phase === 'votacao') {
-      textoVez.textContent = 'Fase de votação. Vote em quem você acha que é o impostor.';
+      textoVez.textContent = 'Fase de votação.';
       boxVotacao.classList.remove('oculta');
       const outros = jogadores.filter(j => j.id !== meuId);
       listaVotos.innerHTML = outros
@@ -216,15 +260,25 @@
 
     if (data.impostorFoiMaisVotado) {
       tituloResultado.textContent = 'Impostor descoberto!';
-      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Inocentes ganharam +1 ponto cada.`;
+      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Que vergonha! Foi desmascarado na frente de todo mundo — zero talento para esconder. Inocentes +1 ponto cada.`;
     } else {
       tituloResultado.textContent = 'Impostor escapou!';
-      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Mais votado: ${escapeHtml(maisVotado?.nome || '?')}. Impostor ganhou +5 pontos.`;
+      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Vocês erraram feio: votaram em ${escapeHtml(maisVotado?.nome || '?')} e deixaram o impostor rir da cara de vocês. Inocentes, que derrota. Impostor +5 pontos.`;
     }
     novaPartidaInfo.textContent = 'Nova partida iniciando em alguns segundos...';
+    document.querySelector('.placar-label').textContent = 'Pontos:';
     placarJogo.innerHTML = (data.jogadores || [])
       .map(j => `<span class="placar-item">${escapeHtml(j.nome)}: <strong>${data.placar[j.id] ?? 0}</strong></span>`)
       .join('');
+  });
+
+  btnIniciarVotacao.addEventListener('click', () => {
+    if (pediuVotacao) return;
+    socket.emit('pedir_votacao');
+    pediuVotacao = true;
+    textoVotacaoPedida.textContent = 'Você pediu. Aguardando mais um jogador.';
+    btnIniciarVotacao.disabled = true;
+    btnIniciarVotacao.textContent = 'Você já pediu votação';
   });
 
   btnEnviarPalavra.addEventListener('click', () => {
@@ -234,6 +288,7 @@
       return;
     }
     socket.emit('enviar_palavra', palavra);
+    inputPalavra.value = '';
     mostrarErro('');
   });
 

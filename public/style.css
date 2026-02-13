@@ -4,12 +4,17 @@
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
-  max-width: 100%;
   margin: 0 auto;
   padding: 1.5rem;
   background: #1a1a2e;
+  background-size: auto;
   color: #eee;
   min-height: 100vh;
+}
+
+#app {
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 h1 {
@@ -256,11 +261,41 @@ button:hover {
   font-style: italic;
 }
 
+.box-palavra-sempre {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.box-palavra-sempre.inocente {
+  background: #0d3329;
+  color: #4ecca3;
+  border: 1px solid #4ecca3;
+}
+
+.box-palavra-sempre.impostor {
+  background: #331a1d;
+  color: #e94560;
+  border: 1px solid #e94560;
+}
+
+.placar-wrap {
+  margin-bottom: 1rem;
+}
+
+.placar-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 0.35rem;
+}
+
 .placar {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 1rem;
   padding: 0.75rem;
   background: #16213e;
   border-radius: 8px;

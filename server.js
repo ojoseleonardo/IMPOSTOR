@@ -90,7 +90,8 @@ function iniciarPartida(sala) {
     turnIndex: 0,
     playerOrder,
     words: {},
-    votes: {}
+    votes: {},
+    votacaoPedida: new Set()
   };
 
   sala.jogadores.forEach((j, i) => {
@@ -122,7 +123,8 @@ function emitirEstadoJogo(sala) {
     vezDe: { id: vezJogador.id, nome: vezJogador.nome },
     words: partida.words,
     placar: sala.placar || {},
-    jogadores: sala.jogadores.map(j => ({ id: j.id, nome: j.nome }))
+    jogadores: sala.jogadores.map(j => ({ id: j.id, nome: j.nome })),
+    votacaoPedidaCount: partida.votacaoPedida ? partida.votacaoPedida.size : 0
   };
   io.to(sala.codigo).emit('estado_jogo', payload);
 }
@@ -198,6 +200,23 @@ io.on('connection', (socket) => {
     if (!dados) return;
     const sala = salas.get(dados.salaId);
     if (!sala || !sala.iniciado || !sala.partida) return;
+    emitirEstadoJogo(sala);
+  });
+
+  socket.on('pedir_votacao', () => {
+    const dados = jogadores.get(socket.id);
+    if (!dados) return;
+    const sala = salas.get(dados.salaId);
+    if (!sala || !sala.partida) return;
+    const partida = sala.partida;
+    if (partida.phase !== 'jogando') return;
+    partida.votacaoPedida = partida.votacaoPedida || new Set();
+    partida.votacaoPedida.add(socket.id);
+    const quantos = partida.votacaoPedida.size;
+    if (quantos >= 2) {
+      partida.votacaoPedida.clear();
+      partida.phase = 'votacao';
+    }
     emitirEstadoJogo(sala);
   });
 
