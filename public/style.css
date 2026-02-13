@@ -45,7 +45,8 @@ h1 {
   color: #aaa;
 }
 
-input[type="text"] {
+input[type="text"],
+select {
   width: 100%;
   padding: 0.6rem;
   margin-bottom: 0.5rem;
@@ -54,6 +55,17 @@ input[type="text"] {
   background: #0f0f1a;
   color: #eee;
   font-size: 1rem;
+}
+
+select {
+  cursor: pointer;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #aaa;
+  font-size: 0.9rem;
 }
 
 button {
@@ -87,6 +99,23 @@ button:hover {
 #codigo-sala {
   color: #4ecca3;
   letter-spacing: 0.2em;
+}
+
+.categoria-info {
+  text-align: center;
+  color: #888;
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
+
+#categoria-sala {
+  color: #4ecca3;
+}
+
+#texto-categoria {
+  font-size: 1rem;
+  color: #888;
+  margin: 0 0 0.5rem 0;
 }
 
 #lista-jogadores {

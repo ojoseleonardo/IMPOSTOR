@@ -11,32 +11,59 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const io = new Server(server);
 
-// Lista de palavras - APENAS no backend. O impostor nunca recebe.
-const PALAVRAS = [
-  'Ace', 'Amaru', 'Ash', 'Blackbeard', 'Blitz', 'Brava', 'Buck', 'Capitão', 'Deimos', 'Dokkaebi',
-  'Finka', 'Flores', 'Fuze', 'Glaz', 'Gridlock', 'Grim', 'Hibana', 'Iana', 'IQ', 'Jackal',
-  'Kali', 'Lion', 'Maverick', 'Montagne', 'Nøkk', 'Nomad', 'Osa', 'Ram', 'Rauora', 'Sens',
-  'Sledge', 'Striker', 'Thatcher', 'Thermite', 'Twitch', 'Ying', 'Zero', 'Zofia',
-  'Alibi', 'Aruni', 'Azami', 'Bandit', 'Castle', 'Caveira', 'Clash', 'Doc', 'Echo', 'Ela',
-  'Fenrir', 'Frost', 'Goyo', 'Jäger', 'Kaid', 'Kapkan', 'Lesion', 'Maestro', 'Melusi', 'Mira',
-  'Mozzie', 'Mute', 'Oryx', 'Pulse', 'Rook', 'Sentry', 'Skopós', 'Smoke', 'Solis', 'Tachanka',
-  'Thorn', 'Thunderbird', 'Tubarão', 'Valkyrie', 'Vigil', 'Wamai', 'Warden', 'Denari'
-];
+// ========== CATEGORIAS E PALAVRAS (apenas no backend) ==========
+const CATEGORIAS = {
+  Animais: [
+    'Cachorro', 'Gato', 'Elefante', 'Leão', 'Tigre', 'Urso', 'Coelho', 'Cavalo', 'Vaca', 'Girafa',
+    'Macaco', 'Panda', 'Zebra', 'Golfinho', 'Baleia', 'Águia', 'Coruja', 'Pinguim', 'Cobra', 'Formiga'
+  ],
+  Países: [
+    'Brasil', 'França', 'Japão', 'Itália', 'Canadá', 'Austrália', 'Egito', 'Índia', 'México', 'Espanha',
+    'Argentina', 'China', 'Alemanha', 'Portugal', 'Rússia', 'Inglaterra', 'Grécia', 'Holanda', 'Suécia', 'Chile'
+  ],
+  Filmes: [
+    'Titanic', 'Matrix', 'Avatar', 'Star Wars', 'Harry Potter', 'Jurassic Park', 'Forrest Gump', 'Gladiador',
+    'Inception', 'Shrek', 'Toy Story', 'O Rei Leão', 'Pulp Fiction', 'Interestelar', 'Os Vingadores'
+  ],
+  Objetos: [
+    'Cadeira', 'Mesa', 'Lâmpada', 'Relógio', 'Televisão', 'Celular', 'Livro', 'Caneta', 'Óculos', 'Chave',
+    'Garfo', 'Prato', 'Vaso', 'Espelho', 'Tesoura', 'Guarda-chuva', 'Mochila', 'Câmera', 'Fone', 'Abajur'
+  ],
+  Comida: [
+    'Pizza', 'Hambúrguer', 'Sorvete', 'Bolo', 'Arroz', 'Feijão', 'Salada', 'Sushi', 'Chocolate', 'Maçã',
+    'Banana', 'Laranja', 'Queijo', 'Pão', 'Ovo', 'Frango', 'Batata', 'Macarrão', 'Café', 'Suco'
+  ],
+  'Times da NBA': [
+    'Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets', 'Chicago Bulls',
+    'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets', 'Detroit Pistons', 'Golden State Warriors',
+    'Houston Rockets', 'Indiana Pacers', 'Los Angeles Clippers', 'Los Angeles Lakers', 'Memphis Grizzlies',
+    'Miami Heat', 'Milwaukee Bucks', 'Minnesota Timberwolves', 'New Orleans Pelicans', 'New York Knicks',
+    'Oklahoma City Thunder', 'Orlando Magic', 'Philadelphia 76ers', 'Phoenix Suns', 'Portland Trail Blazers',
+    'Sacramento Kings', 'San Antonio Spurs', 'Toronto Raptors', 'Utah Jazz', 'Washington Wizards'
+  ]
+};
 
 const MAX_JOGADORES_POR_SALA = 3;
 
-// Estado: salaId -> { jogadores: [{ id, nome }], iniciado: boolean }
+// Estado: salaId -> { jogadores, iniciado, categoria }
 const salas = new Map();
 
-// socketId -> { salaId, nome, papel, palavra? }
+// socketId -> { salaId, nome, papel?, palavra? }
 const jogadores = new Map();
 
 function gerarIdSala() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function escolherPalavra() {
-  return PALAVRAS[Math.floor(Math.random() * PALAVRAS.length)];
+/** Sorteia uma palavra apenas da categoria informada. Categoria deve existir em CATEGORIAS. */
+function escolherPalavra(categoria) {
+  const palavras = CATEGORIAS[categoria];
+  if (!palavras || palavras.length === 0) return null;
+  return palavras[Math.floor(Math.random() * palavras.length)];
+}
+
+function getCategoriasDisponiveis() {
+  return Object.keys(CATEGORIAS);
 }
 
 function embaralhar(array) {
@@ -49,11 +76,21 @@ function embaralhar(array) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('criar_sala', (nome) => {
+  socket.on('pedir_categorias', () => {
+    socket.emit('categorias_disponiveis', getCategoriasDisponiveis());
+  });
+
+  socket.on('criar_sala', (payload) => {
+    const nome = typeof payload === 'string' ? payload : (payload && payload.nome);
+    const categoria = typeof payload === 'object' && payload && payload.categoria;
+    const categoriasValidas = getCategoriasDisponiveis();
+    const categoriaEscolhida = categoriasValidas.includes(categoria) ? categoria : categoriasValidas[0];
+
     const salaId = gerarIdSala();
     salas.set(salaId, {
       jogadores: [{ id: socket.id, nome: nome || 'Jogador' }],
-      iniciado: false
+      iniciado: false,
+      categoria: categoriaEscolhida
     });
     jogadores.set(socket.id, { salaId, nome: nome || 'Jogador' });
     socket.join(salaId);
@@ -62,7 +99,8 @@ io.on('connection', (socket) => {
       codigo: salaId,
       jogadores: [{ nome: nome || 'Jogador' }],
       total: 1,
-      max: MAX_JOGADORES_POR_SALA
+      max: MAX_JOGADORES_POR_SALA,
+      categoria: categoriaEscolhida
     });
   });
 
@@ -90,13 +128,14 @@ io.on('connection', (socket) => {
       codigo,
       jogadores: listaJogadores,
       total: sala.jogadores.length,
-      max: MAX_JOGADORES_POR_SALA
+      max: MAX_JOGADORES_POR_SALA,
+      categoria: sala.categoria
     });
 
     if (sala.jogadores.length === MAX_JOGADORES_POR_SALA) {
       sala.iniciado = true;
       sala.reinicioPedido = new Set();
-      const palavraSorteada = escolherPalavra();
+      const palavraSorteada = escolherPalavra(sala.categoria);
       const indicesEmbaralhados = embaralhar([0, 1, 2]);
       const indiceImpostor = indicesEmbaralhados[0];
 
@@ -108,6 +147,7 @@ io.on('connection', (socket) => {
         };
         if (!ehImpostor) {
           payload.palavra = palavraSorteada;
+          payload.categoria = sala.categoria;
         }
         io.to(j.id).emit('revelar_papel', payload);
       });
@@ -129,7 +169,7 @@ io.on('connection', (socket) => {
 
     if (quantos >= necessario) {
       sala.reinicioPedido.clear();
-      const palavraSorteada = escolherPalavra();
+      const palavraSorteada = escolherPalavra(sala.categoria);
       const indicesEmbaralhados = embaralhar([0, 1, 2]);
       const indiceImpostor = indicesEmbaralhados[0];
 
@@ -141,6 +181,7 @@ io.on('connection', (socket) => {
         };
         if (!ehImpostor) {
           payload.palavra = palavraSorteada;
+          payload.categoria = sala.categoria;
         }
         io.to(j.id).emit('revelar_papel', payload);
       });
@@ -161,7 +202,8 @@ io.on('connection', (socket) => {
             codigo: dados.salaId,
             jogadores: sala.jogadores.map(j => ({ nome: j.nome })),
             total: sala.jogadores.length,
-            max: MAX_JOGADORES_POR_SALA
+            max: MAX_JOGADORES_POR_SALA,
+            categoria: sala.categoria
           });
         }
       }

@@ -16,6 +16,10 @@
       <div class="card">
         <h2>Criar sala</h2>
         <input type="text" id="nome-criar" placeholder="Seu nome" maxlength="20">
+        <label for="categoria-criar">Categoria (tema das palavras)</label>
+        <select id="categoria-criar">
+          <option value="">Carregando...</option>
+        </select>
         <button id="btn-criar">Criar sala</button>
       </div>
 
@@ -33,6 +37,7 @@
     <section id="tela-espera" class="tela oculta">
       <h1>Aguardando jogadores</h1>
       <p id="codigo-sala-display">Código da sala: <strong id="codigo-sala"></strong></p>
+      <p id="categoria-sala-display" class="categoria-info">Categoria: <strong id="categoria-sala"></strong></p>
       <p>Compartilhe o código para outros jogadores entrarem.</p>
       <ul id="lista-jogadores"></ul>
       <p id="contador-espera"><span id="num-jogadores">0</span> / 3 jogadores</p>
@@ -43,6 +48,7 @@
       <h1>Seu papel</h1>
       <div id="box-papel">
         <p id="texto-papel"></p>
+        <p id="texto-categoria" class="oculta"></p>
         <p id="texto-palavra" class="palavra oculta"></p>
       </div>
       <div id="box-reinicio" class="card reinicio">

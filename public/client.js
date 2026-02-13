@@ -9,11 +9,17 @@
   const listaJogadores = document.getElementById('lista-jogadores');
   const numJogadores = document.getElementById('num-jogadores');
   const textoPapel = document.getElementById('texto-papel');
+  const textoCategoria = document.getElementById('texto-categoria');
   const textoPalavra = document.getElementById('texto-palavra');
   const textoReinicio = document.getElementById('texto-reinicio');
   const btnReiniciar = document.getElementById('btn-reiniciar');
+  const categoriaCriar = document.getElementById('categoria-criar');
+  const categoriaSalaDisplay = document.getElementById('categoria-sala-display');
+  const categoriaSala = document.getElementById('categoria-sala');
 
   let pediuReinicio = false;
+
+  socket.emit('pedir_categorias');
 
   function mostrarTela(id) {
     telaEntrada.classList.add('oculta');
@@ -27,9 +33,14 @@
     msgErro.textContent = texto;
   }
 
+  socket.on('categorias_disponiveis', (lista) => {
+    categoriaCriar.innerHTML = lista.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  });
+
   document.getElementById('btn-criar').addEventListener('click', () => {
     const nome = document.getElementById('nome-criar').value.trim() || 'Jogador';
-    socket.emit('criar_sala', nome);
+    const categoria = categoriaCriar.value || categoriaCriar.options[0]?.value;
+    socket.emit('criar_sala', { nome, categoria });
   });
 
   document.getElementById('btn-entrar').addEventListener('click', () => {
@@ -51,6 +62,12 @@
     mostrarTela('tela-espera');
     if (data.codigo) codigoSalaDisplay.textContent = data.codigo;
     document.getElementById('codigo-sala-display').style.display = data.codigo ? 'block' : 'none';
+    if (data.categoria) {
+      categoriaSala.textContent = data.categoria;
+      categoriaSalaDisplay.style.display = 'block';
+    } else {
+      categoriaSalaDisplay.style.display = 'none';
+    }
     numJogadores.textContent = data.total;
     listaJogadores.innerHTML = data.jogadores
       .map(j => `<li>${escapeHtml(j.nome)}</li>`)
@@ -61,11 +78,18 @@
     mostrarTela('tela-revelacao');
     textoPapel.textContent = data.mensagem;
     if (data.palavra) {
+      if (data.categoria) {
+        textoCategoria.textContent = 'Categoria: ' + data.categoria;
+        textoCategoria.classList.remove('oculta');
+      } else {
+        textoCategoria.classList.add('oculta');
+      }
       textoPalavra.textContent = 'Palavra: ' + data.palavra;
       textoPalavra.classList.remove('oculta');
       telaRevelacao.classList.add('inocente');
       telaRevelacao.classList.remove('impostor');
     } else {
+      textoCategoria.classList.add('oculta');
       textoPalavra.classList.add('oculta');
       telaRevelacao.classList.add('impostor');
       telaRevelacao.classList.remove('inocente');
