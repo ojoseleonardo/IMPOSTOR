@@ -44,8 +44,9 @@ const CATEGORIAS = {
 };
 
 const MAX_JOGADORES_POR_SALA = 3;
+const RODADAS_POR_PARTIDA = 3;
 
-// Estado: salaId -> { jogadores, iniciado, categoria }
+// Estado: salaId -> { jogadores, iniciado, categoria, placar, partida? }
 const salas = new Map();
 
 // socketId -> { salaId, nome, papel?, palavra? }
@@ -73,6 +74,57 @@ function embaralhar(array) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+/** Inicializa ou reinicia uma partida na sala. */
+function iniciarPartida(sala) {
+  const palavraSecreta = escolherPalavra(sala.categoria);
+  const indiceImpostor = embaralhar([0, 1, 2])[0];
+  const playerOrder = embaralhar([0, 1, 2]);
+
+  sala.partida = {
+    indiceImpostor,
+    palavraSecreta,
+    phase: 'jogando',
+    round: 0,
+    turnIndex: 0,
+    playerOrder,
+    words: {},
+    votes: {}
+  };
+
+  sala.jogadores.forEach((j, i) => {
+    const ehImpostor = i === indiceImpostor;
+    const payload = {
+      papel: ehImpostor ? 'impostor' : 'inocente',
+      mensagem: ehImpostor ? 'Você é o impostor.' : 'Você é inocente.'
+    };
+    if (!ehImpostor) {
+      payload.palavra = palavraSecreta;
+      payload.categoria = sala.categoria;
+    }
+    io.to(j.id).emit('revelar_papel', payload);
+  });
+
+  emitirEstadoJogo(sala);
+}
+
+function emitirEstadoJogo(sala) {
+  if (!sala.codigo || !sala.partida) return;
+  const partida = sala.partida;
+  const vezIndice = partida.playerOrder[partida.turnIndex];
+  const vezJogador = sala.jogadores[vezIndice];
+  const payload = {
+    phase: partida.phase,
+    round: partida.round,
+    turnIndex: partida.turnIndex,
+    playerOrder: partida.playerOrder,
+    vezDe: { id: vezJogador.id, nome: vezJogador.nome },
+    words: partida.words,
+    placar: sala.placar || {},
+    jogadores: sala.jogadores.map(j => ({ id: j.id, nome: j.nome }))
+  };
+  io.to(sala.codigo).emit('estado_jogo', payload);
 }
 
 io.on('connection', (socket) => {
@@ -134,59 +186,148 @@ io.on('connection', (socket) => {
 
     if (sala.jogadores.length === MAX_JOGADORES_POR_SALA) {
       sala.iniciado = true;
-      sala.reinicioPedido = new Set();
-      const palavraSorteada = escolherPalavra(sala.categoria);
-      const indicesEmbaralhados = embaralhar([0, 1, 2]);
-      const indiceImpostor = indicesEmbaralhados[0];
-
-      sala.jogadores.forEach((j, i) => {
-        const ehImpostor = i === indiceImpostor;
-        const payload = {
-          papel: ehImpostor ? 'impostor' : 'inocente',
-          mensagem: ehImpostor ? 'Você é o impostor.' : 'Você é inocente.'
-        };
-        if (!ehImpostor) {
-          payload.palavra = palavraSorteada;
-          payload.categoria = sala.categoria;
-        }
-        io.to(j.id).emit('revelar_papel', payload);
-      });
+      sala.codigo = codigo;
+      sala.placar = {};
+      sala.jogadores.forEach(j => { sala.placar[j.id] = 0; });
+      iniciarPartida(sala);
     }
   });
 
-  socket.on('pedir_reinicio', () => {
+  socket.on('pedir_estado', () => {
     const dados = jogadores.get(socket.id);
     if (!dados) return;
     const sala = salas.get(dados.salaId);
-    if (!sala || !sala.iniciado || !sala.jogadores) return;
+    if (!sala || !sala.iniciado || !sala.partida) return;
+    emitirEstadoJogo(sala);
+  });
 
-    sala.reinicioPedido = sala.reinicioPedido || new Set();
-    sala.reinicioPedido.add(socket.id);
-
-    const quantos = sala.reinicioPedido.size;
-    const necessario = 2;
-    io.to(dados.salaId).emit('atualizar_reinicio', { quantos, necessario });
-
-    if (quantos >= necessario) {
-      sala.reinicioPedido.clear();
-      const palavraSorteada = escolherPalavra(sala.categoria);
-      const indicesEmbaralhados = embaralhar([0, 1, 2]);
-      const indiceImpostor = indicesEmbaralhados[0];
-
-      sala.jogadores.forEach((j, i) => {
-        const ehImpostor = i === indiceImpostor;
-        const payload = {
-          papel: ehImpostor ? 'impostor' : 'inocente',
-          mensagem: ehImpostor ? 'Você é o impostor.' : 'Você é inocente.'
-        };
-        if (!ehImpostor) {
-          payload.palavra = palavraSorteada;
-          payload.categoria = sala.categoria;
-        }
-        io.to(j.id).emit('revelar_papel', payload);
-      });
-      io.to(dados.salaId).emit('atualizar_reinicio', { quantos: 0, necessario });
+  socket.on('enviar_palavra', (palavra) => {
+    const dados = jogadores.get(socket.id);
+    if (!dados) {
+      socket.emit('erro', 'Você não está em uma sala.');
+      return;
     }
+    const sala = salas.get(dados.salaId);
+    if (!sala || !sala.partida) {
+      socket.emit('erro', 'Partida não encontrada.');
+      return;
+    }
+    const partida = sala.partida;
+    if (partida.phase !== 'jogando') {
+      socket.emit('erro', 'Não é momento de enviar palavra.');
+      return;
+    }
+    const vezIndice = partida.playerOrder[partida.turnIndex];
+    const jogadorDaVez = sala.jogadores[vezIndice];
+    if (socket.id !== jogadorDaVez.id) {
+      socket.emit('erro', 'Não é a sua vez.');
+      return;
+    }
+    const palavraTrim = (palavra && String(palavra).trim()) || '';
+    if (!palavraTrim) {
+      socket.emit('erro', 'Digite uma palavra.');
+      return;
+    }
+    if (!partida.words[socket.id]) partida.words[socket.id] = [];
+    if (partida.words[socket.id][partida.round] !== undefined) {
+      socket.emit('erro', 'Você já enviou palavra nesta rodada.');
+      return;
+    }
+    partida.words[socket.id][partida.round] = palavraTrim;
+
+    io.to(sala.codigo).emit('palavra_revelada', {
+      jogadorId: socket.id,
+      jogadorNome: dados.nome,
+      palavra: palavraTrim,
+      round: partida.round
+    });
+
+    partida.turnIndex++;
+    if (partida.turnIndex >= 3) {
+      partida.turnIndex = 0;
+      partida.round++;
+      if (partida.round >= RODADAS_POR_PARTIDA) {
+        partida.phase = 'votacao';
+      }
+    }
+    emitirEstadoJogo(sala);
+  });
+
+  socket.on('votar', (votedId) => {
+    const dados = jogadores.get(socket.id);
+    if (!dados) {
+      socket.emit('erro', 'Você não está em uma sala.');
+      return;
+    }
+    const sala = salas.get(dados.salaId);
+    if (!sala || !sala.partida) {
+      socket.emit('erro', 'Partida não encontrada.');
+      return;
+    }
+    const partida = sala.partida;
+    if (partida.phase !== 'votacao') {
+      socket.emit('erro', 'Não é fase de votação.');
+      return;
+    }
+    if (votedId === socket.id) {
+      socket.emit('erro', 'Você não pode votar em si mesmo.');
+      return;
+    }
+    const votadoValido = sala.jogadores.some(j => j.id === votedId);
+    if (!votadoValido) {
+      socket.emit('erro', 'Jogador inválido.');
+      return;
+    }
+    if (partida.votes[socket.id] !== undefined) {
+      socket.emit('erro', 'Você já votou.');
+      return;
+    }
+    partida.votes[socket.id] = votedId;
+
+    const numVotos = Object.keys(partida.votes).length;
+    io.to(sala.codigo).emit('voto_registrado', { quantos: numVotos, necessario: 3 });
+
+    if (numVotos < 3) return;
+
+    const votosPorJogador = {};
+    sala.jogadores.forEach(j => { votosPorJogador[j.id] = 0; });
+    Object.values(partida.votes).forEach(id => { votosPorJogador[id] = (votosPorJogador[id] || 0) + 1; });
+
+    let maisVotadoId = null;
+    let maxVotos = 0;
+    for (const [id, count] of Object.entries(votosPorJogador)) {
+      if (count > maxVotos) {
+        maxVotos = count;
+        maisVotadoId = id;
+      }
+    }
+    const impostorId = sala.jogadores[sala.partida.indiceImpostor].id;
+    const impostorFoiMaisVotado = maisVotadoId === impostorId;
+
+    if (impostorFoiMaisVotado) {
+      sala.jogadores.forEach(j => {
+        if (j.id !== impostorId) sala.placar[j.id] = (sala.placar[j.id] || 0) + 1;
+      });
+    } else {
+      sala.placar[impostorId] = (sala.placar[impostorId] || 0) + 5;
+    }
+
+    const resultado = {
+      impostorId,
+      maisVotadoId,
+      impostorFoiMaisVotado,
+      placar: sala.placar,
+      jogadores: sala.jogadores.map(j => ({ id: j.id, nome: j.nome }))
+    };
+    io.to(sala.codigo).emit('resultado_partida', resultado);
+
+    partida.phase = 'resultado';
+    const codigoSala = sala.codigo;
+    setTimeout(() => {
+      const s = salas.get(codigoSala);
+      if (!s || !s.partida || s.partida.phase !== 'resultado') return;
+      iniciarPartida(s);
+    }, 6000);
   });
 
   socket.on('disconnect', () => {

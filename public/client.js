@@ -4,6 +4,7 @@
   const telaEntrada = document.getElementById('tela-entrada');
   const telaEspera = document.getElementById('tela-espera');
   const telaRevelacao = document.getElementById('tela-revelacao');
+  const telaJogo = document.getElementById('tela-jogo');
   const msgErro = document.getElementById('msg-erro');
   const codigoSalaDisplay = document.getElementById('codigo-sala');
   const listaJogadores = document.getElementById('lista-jogadores');
@@ -11,13 +12,26 @@
   const textoPapel = document.getElementById('texto-papel');
   const textoCategoria = document.getElementById('texto-categoria');
   const textoPalavra = document.getElementById('texto-palavra');
-  const textoReinicio = document.getElementById('texto-reinicio');
-  const btnReiniciar = document.getElementById('btn-reiniciar');
   const categoriaCriar = document.getElementById('categoria-criar');
   const categoriaSalaDisplay = document.getElementById('categoria-sala-display');
   const categoriaSala = document.getElementById('categoria-sala');
 
-  let pediuReinicio = false;
+  const placarJogo = document.getElementById('placar-jogo');
+  const rodadaInfo = document.getElementById('rodada-info');
+  const textoVez = document.getElementById('texto-vez');
+  const boxEnviarPalavra = document.getElementById('box-enviar-palavra');
+  const inputPalavra = document.getElementById('input-palavra');
+  const btnEnviarPalavra = document.getElementById('btn-enviar-palavra');
+  const boxVotacao = document.getElementById('box-votacao');
+  const listaVotos = document.getElementById('lista-votos');
+  const boxResultado = document.getElementById('box-resultado');
+  const tituloResultado = document.getElementById('titulo-resultado');
+  const textoResultado = document.getElementById('texto-resultado');
+  const novaPartidaInfo = document.getElementById('nova-partida-info');
+  const blocosJogadores = document.getElementById('blocos-jogadores');
+
+  let estadoAtual = null;
+  let revelacaoRecente = false;
 
   socket.emit('pedir_categorias');
 
@@ -25,6 +39,7 @@
     telaEntrada.classList.add('oculta');
     telaEspera.classList.add('oculta');
     telaRevelacao.classList.add('oculta');
+    telaJogo.classList.add('oculta');
     document.getElementById(id).classList.remove('oculta');
     msgErro.textContent = '';
   }
@@ -76,6 +91,7 @@
 
   socket.on('revelar_papel', (data) => {
     mostrarTela('tela-revelacao');
+    revelacaoRecente = true;
     textoPapel.textContent = data.mensagem;
     if (data.palavra) {
       if (data.categoria) {
@@ -94,32 +110,135 @@
       telaRevelacao.classList.add('impostor');
       telaRevelacao.classList.remove('inocente');
     }
-    atualizarUIReinicio(0, 2);
-    pediuReinicio = false;
   });
 
-  function atualizarUIReinicio(quantos, necessario) {
-    textoReinicio.textContent = quantos >= necessario
-      ? 'Reiniciando...'
-      : quantos === 0
-        ? 'Pelo menos 2 jogadores precisam apertar para reiniciar.'
-        : quantos + '/' + necessario + ' jogadores querem reiniciar.';
-    btnReiniciar.disabled = pediuReinicio;
-    btnReiniciar.textContent = pediuReinicio ? 'Você já pediu reinício' : 'Reiniciar jogo';
+  function renderizarTelaJogo() {
+    if (!estadoAtual) return;
+    const estado = estadoAtual;
+    const meuId = socket.id;
+    const jogadores = estado.jogadores || [];
+    const placar = estado.placar || {};
+    const words = estado.words || {};
+    const phase = estado.phase || 'jogando';
+    const round = (estado.round || 0) + 1;
+    const vezDe = estado.vezDe || {};
+    const playerOrder = estado.playerOrder || [0, 1, 2];
+
+    placarJogo.innerHTML = jogadores
+      .map(j => `<span class="placar-item">${escapeHtml(j.nome)}: <strong>${placar[j.id] ?? 0}</strong></span>`)
+      .join('');
+
+    rodadaInfo.textContent = `Rodada ${round} de 3`;
+
+    blocosJogadores.innerHTML = jogadores
+      .map((j, idx) => {
+        const ordem = playerOrder.indexOf(idx);
+        const palavrasDoJogador = words[j.id] || [];
+        const listItems = [0, 1, 2].map(i => {
+          const p = palavrasDoJogador[i];
+          return p ? `<li>${escapeHtml(p)}</li>` : '<li class="vazio">—</li>';
+        });
+        return `
+          <div class="bloco-jogador" data-jogador-id="${escapeHtml(j.id)}">
+            <div class="nome-jogador">${escapeHtml(j.nome)}</div>
+            <ul class="palavras-jogador">${listItems.join('')}</ul>
+          </div>`;
+      })
+      .join('');
+
+    boxEnviarPalavra.classList.add('oculta');
+    boxVotacao.classList.add('oculta');
+    boxResultado.classList.add('oculta');
+
+    if (phase === 'jogando') {
+      textoVez.textContent = vezDe.id === meuId
+        ? 'Sua vez! Envie uma palavra relacionada ao tema.'
+        : `Vez de ${escapeHtml(vezDe.nome || '?')}. Aguardando...`;
+      if (vezDe.id === meuId) {
+        boxEnviarPalavra.classList.remove('oculta');
+        inputPalavra.value = '';
+        inputPalavra.focus();
+      }
+    } else if (phase === 'votacao') {
+      textoVez.textContent = 'Fase de votação. Vote em quem você acha que é o impostor.';
+      boxVotacao.classList.remove('oculta');
+      const outros = jogadores.filter(j => j.id !== meuId);
+      listaVotos.innerHTML = outros
+        .map(j => `<button type="button" data-voto-id="${escapeHtml(j.id)}">${escapeHtml(j.nome)}</button>`)
+        .join('');
+      listaVotos.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const votedId = btn.getAttribute('data-voto-id');
+          socket.emit('votar', votedId);
+          listaVotos.querySelectorAll('button').forEach(b => { b.disabled = true; });
+        });
+      });
+    }
   }
 
-  btnReiniciar.addEventListener('click', () => {
-    if (pediuReinicio) return;
-    socket.emit('pedir_reinicio');
-    pediuReinicio = true;
-    atualizarUIReinicio(1, 2);
+  socket.on('estado_jogo', (data) => {
+    estadoAtual = data;
+    if (revelacaoRecente) {
+      revelacaoRecente = false;
+      setTimeout(() => {
+        mostrarTela('tela-jogo');
+        renderizarTelaJogo();
+      }, 2000);
+    } else {
+      mostrarTela('tela-jogo');
+      renderizarTelaJogo();
+    }
   });
 
-  socket.on('atualizar_reinicio', (data) => {
-    if (data.quantos === 0) {
-      pediuReinicio = false;
+  socket.on('palavra_revelada', () => {
+    socket.emit('pedir_estado');
+  });
+
+  socket.on('voto_registrado', (data) => {
+    if (estadoAtual && data.quantos < data.necessario) {
+      textoVez.textContent = `Votos: ${data.quantos}/${data.necessario}. Aguardando todos votarem.`;
     }
-    atualizarUIReinicio(data.quantos, data.necessario);
+  });
+
+  socket.on('resultado_partida', (data) => {
+    estadoAtual = estadoAtual || {};
+    estadoAtual.placar = data.placar;
+    estadoAtual.phase = 'resultado';
+    mostrarTela('tela-jogo');
+    renderizarTelaJogo();
+
+    boxEnviarPalavra.classList.add('oculta');
+    boxVotacao.classList.add('oculta');
+    boxResultado.classList.remove('oculta');
+
+    const impostor = data.jogadores.find(j => j.id === data.impostorId);
+    const maisVotado = data.jogadores.find(j => j.id === data.maisVotadoId);
+
+    if (data.impostorFoiMaisVotado) {
+      tituloResultado.textContent = 'Impostor descoberto!';
+      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Inocentes ganharam +1 ponto cada.`;
+    } else {
+      tituloResultado.textContent = 'Impostor escapou!';
+      textoResultado.textContent = `O impostor era ${escapeHtml(impostor?.nome || '?')}. Mais votado: ${escapeHtml(maisVotado?.nome || '?')}. Impostor ganhou +5 pontos.`;
+    }
+    novaPartidaInfo.textContent = 'Nova partida iniciando em alguns segundos...';
+    placarJogo.innerHTML = (data.jogadores || [])
+      .map(j => `<span class="placar-item">${escapeHtml(j.nome)}: <strong>${data.placar[j.id] ?? 0}</strong></span>`)
+      .join('');
+  });
+
+  btnEnviarPalavra.addEventListener('click', () => {
+    const palavra = inputPalavra.value.trim();
+    if (!palavra) {
+      mostrarErro('Digite uma palavra.');
+      return;
+    }
+    socket.emit('enviar_palavra', palavra);
+    mostrarErro('');
+  });
+
+  inputPalavra.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') btnEnviarPalavra.click();
   });
 
   socket.on('erro', (texto) => {
@@ -127,6 +246,7 @@
   });
 
   function escapeHtml(texto) {
+    if (texto == null) return '';
     const div = document.createElement('div');
     div.textContent = texto;
     return div.innerHTML;

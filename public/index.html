@@ -43,7 +43,7 @@
       <p id="contador-espera"><span id="num-jogadores">0</span> / 3 jogadores</p>
     </section>
 
-    <!-- Tela de revelação do papel -->
+    <!-- Tela de revelação do papel (início da partida) -->
     <section id="tela-revelacao" class="tela oculta">
       <h1>Seu papel</h1>
       <div id="box-papel">
@@ -51,10 +51,34 @@
         <p id="texto-categoria" class="oculta"></p>
         <p id="texto-palavra" class="palavra oculta"></p>
       </div>
-      <div id="box-reinicio" class="card reinicio">
-        <p id="texto-reinicio">Pelo menos 2 jogadores precisam apertar para reiniciar.</p>
-        <button id="btn-reiniciar">Reiniciar jogo</button>
+    </section>
+
+    <!-- Tela de jogo: rodadas, turnos, palavras, votação -->
+    <section id="tela-jogo" class="tela oculta layout-jogo">
+      <div class="area-principal">
+        <div id="placar-jogo" class="placar"></div>
+        <p id="rodada-info" class="rodada-info"></p>
+        <div id="box-vez" class="card">
+          <p id="texto-vez"></p>
+          <div id="box-enviar-palavra" class="oculta">
+            <input type="text" id="input-palavra" placeholder="Sua palavra" maxlength="40">
+            <button id="btn-enviar-palavra">Enviar palavra</button>
+          </div>
+        </div>
+        <div id="box-votacao" class="card oculta">
+          <h3>Vote em quem você acha que é o impostor</h3>
+          <div id="lista-votos"></div>
+        </div>
+        <div id="box-resultado" class="card oculta">
+          <h3 id="titulo-resultado"></h3>
+          <p id="texto-resultado"></p>
+          <p id="nova-partida-info"></p>
+        </div>
       </div>
+      <aside id="sidebar-palavras" class="sidebar-palavras">
+        <h3>Palavras por jogador</h3>
+        <div id="blocos-jogadores"></div>
+      </aside>
     </section>
   </div>
 
